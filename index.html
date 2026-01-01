@@ -2,17 +2,20 @@
 <html lang="ko">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>전자 서명 서비스</title>
     <style>
         body {
             font-family: 'Noto Sans KR', sans-serif;
             background-color: #f0f2f5;
             margin: 0;
-            padding: 20px;
+            padding: 0;
             display: flex;
             justify-content: center;
-            min-height: 100vh;
+            align-items: center;
+            height: 100vh;
+            overflow: hidden;
+            overscroll-behavior: none;
         }
 
         .container {
@@ -20,15 +23,18 @@
             max-width: 500px;
             background: white;
             padding: 20px;
+            box-sizing: border-box;
             border-radius: 12px;
             box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+            max-height: 95vh;
+            overflow-y: auto;
         }
 
-        h2 { text-align: center; color: #333; margin-top: 0; }
+        h2 { text-align: center; color: #333; margin-top: 0; font-size: 1.4rem; }
         .hidden { display: none !important; }
 
         /* 공통 스타일 */
-        label { display: block; margin-top: 15px; font-weight: bold; color: #555; }
+        label { display: block; margin-top: 15px; font-weight: bold; color: #555; font-size: 0.9rem;}
         input {
             width: 100%;
             padding: 12px;
@@ -39,6 +45,48 @@
             font-size: 1rem;
         }
 
+        /* 내용 입력 박스 (에디터 스타일) */
+        .editable-box {
+            width: 100%;
+            min-height: 120px;
+            max-height: 300px;
+            padding: 12px;
+            margin-top: 5px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            box-sizing: border-box;
+            font-size: 1rem;
+            overflow-y: auto;
+            background-color: #fff;
+            text-align: left;
+        }
+        .editable-box img {
+            max-width: 100%;
+            height: auto;
+        }
+        .editable-box:empty:before {
+            content: attr(placeholder);
+            color: #aaa;
+            display: block;
+        }
+        
+        /* 내용 표시 영역 (읽기 전용) */
+        .content-display {
+            background: #fff;
+            padding: 15px;
+            border: 1px solid #eee;
+            border-radius: 6px;
+            margin-top: 10px;
+            font-size: 0.95rem;
+            line-height: 1.5;
+            color: #333;
+        }
+        .content-display img {
+            max-width: 100%;
+            height: auto;
+        }
+
+        /* 버튼 스타일 */
         button {
             width: 100%;
             padding: 14px;
@@ -57,20 +105,51 @@
         .btn-kakao { background-color: #fee500; color: #3c1e1e; }
         .btn-kakao:hover { background-color: #fdd835; }
 
-        .btn-success { background-color: #28a745; color: white; }
-        
-        .btn-danger { background-color: #dc3545; color: white; margin-top: 10px;}
-
-        /* 서명 캔버스 */
-        .canvas-wrapper {
+        /* 서명 캔버스 영역 */
+        .canvas-container {
+            position: relative;
             margin-top: 15px;
-            border: 2px solid #ddd;
+        }
+
+        .canvas-wrapper {
+            border: 1px solid #ccc;
             border-radius: 8px;
-            background: #fff;
+            background-color: #fdfdfd;
+            background-image: 
+                linear-gradient(#eee .1em, transparent .1em), 
+                linear-gradient(90deg, #eee .1em, transparent .1em);
+            background-size: 20px 20px;
             overflow: hidden;
             touch-action: none;
         }
-        canvas { display: block; width: 100%; }
+        
+        canvas { 
+            display: block; 
+            width: 100%; 
+            cursor: crosshair;
+        }
+
+        .btn-clear-small {
+            position: absolute;
+            top: -35px;
+            right: 0;
+            width: auto;
+            padding: 5px 10px;
+            margin: 0;
+            background-color: transparent;
+            color: #888;
+            font-size: 0.85rem;
+            font-weight: normal;
+            border: 1px solid #ddd;
+            border-radius: 20px;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+        .btn-clear-small:hover {
+            background-color: #f0f0f0;
+            color: #333;
+        }
 
         /* 증명서 스타일 */
         .certificate {
@@ -81,7 +160,7 @@
             background: #fff;
         }
         .cert-title { font-size: 1.5rem; font-weight: bold; margin-bottom: 20px; text-decoration: underline; }
-        .cert-content { text-align: left; line-height: 1.8; margin-bottom: 20px; }
+        .cert-content { text-align: left; line-height: 1.8; margin-bottom: 20px; font-size: 0.95rem; }
         .cert-sign-img { max-width: 150px; display: block; margin: 0 auto; border-bottom: 1px solid #000; }
         .stamp {
             width: 60px;
@@ -104,24 +183,28 @@
 
     <div class="container">
         
-        <!-- 1. 관리자 화면 (링크 생성) -->
+        <!-- 1. 관리자 화면 -->
         <div id="admin-screen">
-            <h2>📝 계약서 발송 (관리자)</h2>
+            <h2>📝 서명확인발송(관리자)</h2>
             <p style="color:#666; font-size:0.9rem; text-align:center;">고객에게 보낼 정보를 입력하세요.</p>
             
-            <label>고객 성함</label>
+            <label>고객명</label>
             <input type="text" id="admin-name" placeholder="예: 홍길동">
             
-            <label>계약/상품명</label>
-            <input type="text" id="admin-item" placeholder="예: 자동차 매매 계약서">
+            <label>제목</label>
+            <input type="text" id="admin-title" placeholder="예: 자동차 매매 계약서">
 
-            <label>계약 날짜</label>
+            <label>작성일</label>
             <input type="date" id="admin-date">
+
+            <label>내용</label>
+            <div id="admin-content" class="editable-box" contenteditable="true" placeholder="텍스트 또는 이미지 삽입"></div>
+            <p style="font-size:0.8rem; color:#888; margin-top:5px;">* 이미지는 복사/붙여넣기로 넣을 수 있습니다. (용량이 크면 링크가 생성되지 않을 수 있습니다)</p>
 
             <button class="btn-primary" onclick="generateLink()">🔗 서명 링크 생성</button>
             
             <div id="link-area" class="hidden" style="margin-top:15px; background:#eee; padding:10px; border-radius:5px; word-break:break-all;">
-                <p id="generated-url" style="font-size:0.8rem; color:#333;"></p>
+                <p id="generated-url" style="font-size:0.8rem; color:#333; margin:0 0 10px 0; max-height: 60px; overflow: hidden;"></p>
                 <button class="btn-kakao" onclick="copyLink()">카카오톡(클립보드) 복사</button>
             </div>
         </div>
@@ -129,35 +212,45 @@
         <!-- 2. 고객 서명 화면 -->
         <div id="sign-screen" class="hidden">
             <h2>✍️ 전자 서명</h2>
-            <div style="background:#f8f9fa; padding:15px; border-radius:8px; margin-bottom:15px;">
-                <p><strong>성함:</strong> <span id="sign-name"></span></p>
-                <p><strong>내용:</strong> <span id="sign-item"></span></p>
-                <p><strong>날짜:</strong> <span id="sign-date"></span></p>
-                <p style="font-size:0.8rem; color:#666;">위 내용에 동의하며 서명합니다.</p>
+            <div style="background:#f8f9fa; padding:15px; border-radius:8px; margin-bottom:25px;">
+                <p style="margin:5px 0;"><strong>고객명:</strong> <span id="sign-name"></span></p>
+                <p style="margin:5px 0;"><strong>제목:</strong> <span id="sign-title"></span></p>
+                <p style="margin:5px 0;"><strong>작성일:</strong> <span id="sign-date"></span></p>
+                <hr style="border:0; border-top:1px solid #ddd; margin: 10px 0;">
+                <strong>내용:</strong>
+                <div id="sign-content" class="content-display"></div>
+                <p style="font-size:0.8rem; color:#666; margin-top:10px;">위 내용에 동의하며 정자로 서명해주세요.</p>
             </div>
 
-            <div class="canvas-wrapper">
-                <canvas id="signature-pad"></canvas>
+            <div class="canvas-container">
+                <button class="btn-clear-small" onclick="clearCanvas()">
+                    🔄 다시 쓰기
+                </button>
+                <div class="canvas-wrapper">
+                    <canvas id="signature-pad"></canvas>
+                </div>
             </div>
             
-            <button class="btn-danger" onclick="clearCanvas()">지우기</button>
-            <button class="btn-success" onclick="completeSignature()">서명 완료 및 제출</button>
+            <button class="btn-primary" onclick="completeSignature()" style="margin-top: 30px;">서명 완료 및 제출</button>
         </div>
 
         <!-- 3. 완료 및 증명서 화면 -->
         <div id="cert-screen" class="hidden">
             <h2>✅ 서명 완료</h2>
-            <p style="text-align:center;">서명이 정상적으로 처리되었습니다.</p>
+            <p style="text-align:center; color:#666; font-size:0.9rem;">서명이 정상적으로 처리되었습니다.</p>
             
             <div class="certificate" id="certificate-view">
-                <div class="cert-title">계 약 확 인 서</div>
+                <div class="cert-title" id="cert-title-text">확 인 서</div>
                 <div class="cert-content">
-                    본인은 <strong><span id="cert-date"></span></strong>에<br>
-                    <strong><span id="cert-item"></span></strong>에 대한 내용을 확인하였으며,<br>
+                    <strong>제목: <span id="cert-item-title"></span></strong>
+                    <br><br>
+                    <div id="cert-content-body" class="content-display" style="border:none; padding:0;"></div>
+                    <br>
+                    본인은 <strong><span id="cert-date"></span></strong>에 위 내용을 확인하였으며,
                     이에 동의합니다.
                 </div>
                 <div style="margin-top:30px; text-align: right;">
-                    성명: <span id="cert-name" style="font-weight:bold;"></span> (인)<br>
+                    고객명: <span id="cert-name" style="font-weight:bold;"></span> (인)<br>
                     <img id="cert-img" class="cert-sign-img" alt="서명">
                 </div>
                 <div class="stamp">서명완료</div>
@@ -170,7 +263,6 @@
     </div>
 
     <script>
-        // DOM 요소 가져오기
         const screens = {
             admin: document.getElementById('admin-screen'),
             sign: document.getElementById('sign-screen'),
@@ -182,24 +274,43 @@
         let isDrawing = false;
         let lastX = 0; let lastY = 0;
 
-        // 1. 초기 로딩 시 모드 판별 (URL 파라미터 확인)
+        // 1. 초기 로딩 및 파라미터 확인
         window.onload = function() {
             const params = new URLSearchParams(window.location.search);
+            // URL 디코딩
             const name = params.get('name');
-            const item = params.get('item');
+            const title = params.get('title');
             const date = params.get('date');
+            const content = params.get('content');
 
-            if (name && item) {
-                // 파라미터가 있으면 '서명 모드'로 진입
+            if (name && title) {
+                // 서명 모드
                 showScreen('sign');
                 document.getElementById('sign-name').innerText = name;
-                document.getElementById('sign-item').innerText = item;
+                document.getElementById('sign-title').innerText = title;
                 document.getElementById('sign-date').innerText = date || new Date().toISOString().split('T')[0];
-                resizeCanvas();
+                
+                // 내용 표시 (HTML 태그 허용을 위해 innerHTML 사용)
+                // 보안상 script 태그 제거 등의 소독(Sanitizing)이 필요하지만, 여기서는 데모용으로 단순 처리
+                if(content) {
+                    document.getElementById('sign-content').innerHTML = decodeURIComponent(content);
+                } else {
+                    document.getElementById('sign-content').innerText = "(내용 없음)";
+                }
+
+                setTimeout(resizeCanvas, 50);
             } else {
-                // 파라미터가 없으면 '관리자 모드'
+                // 관리자 모드
                 showScreen('admin');
                 document.getElementById('admin-date').valueAsDate = new Date();
+                
+                // 플레이스홀더 처리
+                const contentBox = document.getElementById('admin-content');
+                contentBox.addEventListener('focus', function() {
+                    if(this.innerText === '텍스트 또는 이미지 삽입') {
+                        this.innerText = '';
+                    }
+                });
             }
         };
 
@@ -211,17 +322,27 @@
         // --- 관리자 기능 ---
         function generateLink() {
             const name = document.getElementById('admin-name').value;
-            const item = document.getElementById('admin-item').value;
+            const title = document.getElementById('admin-title').value;
             const date = document.getElementById('admin-date').value;
+            const content = document.getElementById('admin-content').innerHTML;
 
-            if (!name || !item) {
-                alert("고객명과 계약 내용을 입력해주세요.");
+            if (!name || !title) {
+                alert("고객명과 제목을 입력해주세요.");
                 return;
             }
 
-            // 현재 주소 + 파라미터 조합
+            // 내용 인코딩
+            const encodedContent = encodeURIComponent(content);
+
+            // 현재 주소 + 파라미터
             const baseUrl = window.location.href.split('?')[0];
-            const fullUrl = `${baseUrl}?name=${encodeURIComponent(name)}&item=${encodeURIComponent(item)}&date=${date}`;
+            const fullUrl = `${baseUrl}?name=${encodeURIComponent(name)}&title=${encodeURIComponent(title)}&date=${date}&content=${encodedContent}`;
+
+            // URL 길이 체크 (브라우저/서버 제한 고려, 대략 2000~4000자 안전)
+            if (fullUrl.length > 8000) {
+                alert("내용(이미지)이 너무 많아 링크를 생성할 수 없습니다.\n이미지를 줄이거나 텍스트로 대체해주세요.");
+                return;
+            }
 
             document.getElementById('link-area').classList.remove('hidden');
             document.getElementById('generated-url').innerText = fullUrl;
@@ -237,63 +358,83 @@
         // --- 서명 캔버스 기능 ---
         function resizeCanvas() {
             const container = document.querySelector('.canvas-wrapper');
-            canvas.width = container.offsetWidth;
-            canvas.height = 200; // 높이 고정
+            const ratio = Math.max(window.devicePixelRatio || 1, 1);
             
+            canvas.width = container.offsetWidth * ratio;
+            canvas.height = 200 * ratio;
+            canvas.style.width = container.offsetWidth + "px";
+            canvas.style.height = "200px";
+            
+            ctx.scale(ratio, ratio);
             ctx.strokeStyle = '#000';
-            ctx.lineWidth = 2;
+            ctx.lineWidth = 2.5;
             ctx.lineCap = 'round';
+            ctx.lineJoin = 'round';
         }
+
+        window.addEventListener('resize', () => {
+             if(!isDrawing && !document.getElementById('sign-screen').classList.contains('hidden')) {
+                 resizeCanvas();
+             }
+        });
 
         function getPos(e) {
             const rect = canvas.getBoundingClientRect();
-            const clientX = e.changedTouches ? e.changedTouches[0].clientX : e.clientX;
-            const clientY = e.changedTouches ? e.changedTouches[0].clientY : e.clientY;
+            const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+            const clientY = e.touches ? e.touches[0].clientY : e.clientY;
             return [clientX - rect.left, clientY - rect.top];
         }
 
-        canvas.addEventListener('mousedown', (e) => { isDrawing = true; [lastX, lastY] = getPos(e); });
-        canvas.addEventListener('mousemove', (e) => {
+        function startDrawing(e) {
+            isDrawing = true;
+            [lastX, lastY] = getPos(e);
+        }
+
+        function draw(e) {
             if (!isDrawing) return;
-            e.preventDefault();
+            if(e.cancelable) e.preventDefault(); 
             const [x, y] = getPos(e);
-            ctx.beginPath(); ctx.moveTo(lastX, lastY); ctx.lineTo(x, y); ctx.stroke();
+            ctx.beginPath();
+            ctx.moveTo(lastX, lastY);
+            ctx.lineTo(x, y);
+            ctx.stroke();
             [lastX, lastY] = [x, y];
-        });
-        window.addEventListener('mouseup', () => isDrawing = false);
+        }
+
+        function stopDrawing() {
+            isDrawing = false;
+        }
+
+        canvas.addEventListener('mousedown', startDrawing);
+        canvas.addEventListener('mousemove', draw);
+        window.addEventListener('mouseup', stopDrawing);
         
-        // 모바일 터치 지원
-        canvas.addEventListener('touchstart', (e) => { isDrawing = true; [lastX, lastY] = getPos(e); });
-        canvas.addEventListener('touchmove', (e) => {
-            if (!isDrawing) return;
-            e.preventDefault();
-            const [x, y] = getPos(e);
-            ctx.beginPath(); ctx.moveTo(lastX, lastY); ctx.lineTo(x, y); ctx.stroke();
-            [lastX, lastY] = [x, y];
-        });
-        window.addEventListener('touchend', () => isDrawing = false);
+        canvas.addEventListener('touchstart', startDrawing, { passive: false });
+        canvas.addEventListener('touchmove', draw, { passive: false });
+        window.addEventListener('touchend', stopDrawing);
 
         function clearCanvas() {
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            const ratio = Math.max(window.devicePixelRatio || 1, 1);
+            ctx.clearRect(0, 0, canvas.width / ratio, canvas.height / ratio);
         }
 
         // --- 완료 및 증명서 생성 ---
         function completeSignature() {
-            // 1. 빈 캔버스인지 확인 (간단 체크)
-            // (실제로는 픽셀 검사가 필요하지만 여기선 생략)
-            
-            // 2. 데이터 이동
             const name = document.getElementById('sign-name').innerText;
-            const item = document.getElementById('sign-item').innerText;
+            const title = document.getElementById('sign-title').innerText;
             const date = document.getElementById('sign-date').innerText;
+            const content = document.getElementById('sign-content').innerHTML; // HTML 복사
             const signImgUrl = canvas.toDataURL();
 
             document.getElementById('cert-name').innerText = name;
-            document.getElementById('cert-item').innerText = item;
+            document.getElementById('cert-item-title').innerText = title;
             document.getElementById('cert-date').innerText = date;
+            document.getElementById('cert-content-body').innerHTML = content;
             document.getElementById('cert-img').src = signImgUrl;
+            
+            // 제목을 '확인서' 대신 입력한 제목으로 변경하고 싶다면 아래 주석 해제
+            // document.getElementById('cert-title-text').innerText = title + " 확인서";
 
-            // 3. 화면 전환
             showScreen('cert');
         }
     </script>
