@@ -35,7 +35,7 @@
 
         /* 공통 스타일 */
         label { display: block; margin-top: 15px; font-weight: bold; color: #555; font-size: 0.9rem;}
-        input {
+        input, textarea {
             width: 100%;
             padding: 12px;
             margin-top: 5px;
@@ -43,33 +43,43 @@
             border-radius: 6px;
             box-sizing: border-box;
             font-size: 1rem;
-        }
-
-        /* 내용 입력 박스 (에디터 스타일) */
-        .editable-box {
-            width: 100%;
-            min-height: 120px;
-            max-height: 300px;
-            padding: 12px;
-            margin-top: 5px;
-            border: 1px solid #ddd;
-            border-radius: 6px;
-            box-sizing: border-box;
-            font-size: 1rem;
-            overflow-y: auto;
-            background-color: #fff;
-            text-align: left;
-        }
-        .editable-box img {
-            max-width: 100%;
-            height: auto;
-        }
-        .editable-box:empty:before {
-            content: attr(placeholder);
-            color: #aaa;
-            display: block;
+            font-family: inherit;
         }
         
+        /* 텍스트 입력 전용 (textarea) */
+        textarea {
+            resize: vertical;
+            min-height: 100px;
+            line-height: 1.5;
+        }
+
+        /* 파일 업로드 스타일 */
+        .file-upload-wrapper {
+            margin-top: 5px;
+            border: 2px dashed #ddd;
+            border-radius: 6px;
+            padding: 15px;
+            text-align: center;
+            background: #fafafa;
+            transition: 0.2s;
+        }
+        .file-upload-wrapper:hover {
+            border-color: #aaa;
+            background: #f0f0f0;
+        }
+        .file-preview {
+            max-width: 100%;
+            max-height: 150px;
+            margin-top: 10px;
+            display: none;
+            border-radius: 4px;
+            border: 1px solid #ddd;
+        }
+        .file-msg {
+            font-size: 0.8rem;
+            color: #888;
+        }
+
         /* 내용 표시 영역 (읽기 전용) */
         .content-display {
             background: #fff;
@@ -80,10 +90,13 @@
             font-size: 0.95rem;
             line-height: 1.5;
             color: #333;
+            white-space: pre-wrap; /* 줄바꿈 보존 */
         }
-        .content-display img {
+        .content-img-display {
+            display: block;
             max-width: 100%;
-            height: auto;
+            margin-top: 10px;
+            border-radius: 4px;
         }
 
         /* 버튼 스타일 */
@@ -161,21 +174,53 @@
         }
         .cert-title { font-size: 1.5rem; font-weight: bold; margin-bottom: 20px; text-decoration: underline; }
         .cert-content { text-align: left; line-height: 1.8; margin-bottom: 20px; font-size: 0.95rem; }
-        .cert-sign-img { max-width: 150px; display: block; margin: 0 auto; border-bottom: 1px solid #000; }
+        
+        /* 증명서 하단 서명 영역 스타일 변경 */
+        .cert-footer {
+            margin-top: 40px;
+            display: flex;
+            flex-direction: column;
+            align-items: flex-end; /* 오른쪽 정렬 */
+            padding-right: 10px;
+        }
+        
+        .sign-area {
+            position: relative;
+            display: inline-block;
+            margin-top: 5px;
+            padding-right: 50px; /* 도장 공간 확보 */
+            min-height: 60px;
+        }
+
+        .cert-sign-img { 
+            max-width: 120px; 
+            height: auto;
+            display: block; 
+            border-bottom: 1px solid #333;
+        }
+        
+        /* 세련된 도장 스타일 */
         .stamp {
-            width: 60px;
-            height: 60px;
-            border: 3px solid red;
-            color: red;
+            position: absolute;
+            bottom: 0;
+            right: 0;
+            width: 42px;
+            height: 42px;
+            border: 2px solid #e53935; /* 진한 붉은색 */
+            color: #e53935;
             border-radius: 50%;
             display: flex;
             align-items: center;
             justify-content: center;
             font-weight: bold;
-            font-size: 0.8rem;
-            transform: rotate(-15deg);
-            margin: 10px auto;
-            opacity: 0.8;
+            font-size: 0.6rem;
+            transform: rotate(-15deg); /* 살짝 기울기 */
+            opacity: 0.85;
+            background: rgba(255,255,255,0.7); /* 배경 살짝 불투명 */
+            box-shadow: 0 0 0 2px rgba(255,255,255,0.3); /* 미세한 흰색 테두리 */
+            line-height: 1.1;
+            text-align: center;
+            letter-spacing: -0.5px;
         }
     </style>
 </head>
@@ -197,9 +242,16 @@
             <label>작성일</label>
             <input type="date" id="admin-date">
 
-            <label>내용</label>
-            <div id="admin-content" class="editable-box" contenteditable="true" placeholder="텍스트 또는 이미지 삽입"></div>
-            <p style="font-size:0.8rem; color:#888; margin-top:5px;">* 이미지는 복사/붙여넣기로 넣을 수 있습니다. (용량이 크면 링크가 생성되지 않을 수 있습니다)</p>
+            <label>내용 (텍스트)</label>
+            <textarea id="admin-content-text" placeholder="계약 상세 내용을 입력하세요."></textarea>
+
+            <label>이미지 첨부 (선택 사항)</label>
+            <div class="file-upload-wrapper">
+                <input type="file" id="admin-img-file" accept="image/*" style="display:none;" onchange="handleFileSelect(this)">
+                <button onclick="document.getElementById('admin-img-file').click()" style="margin-top:0; width:auto; padding:8px 15px; font-size:0.9rem; background:#666;">파일 선택</button>
+                <p class="file-msg" id="file-msg">15KB 이하의 작은 이미지(로고, 도장 등)만 가능합니다.<br>큰 사진은 첨부 불가</p>
+                <img id="admin-img-preview" class="file-preview">
+            </div>
 
             <button class="btn-primary" onclick="generateLink()">🔗 서명 링크 생성</button>
             
@@ -218,7 +270,8 @@
                 <p style="margin:5px 0;"><strong>작성일:</strong> <span id="sign-date"></span></p>
                 <hr style="border:0; border-top:1px solid #ddd; margin: 10px 0;">
                 <strong>내용:</strong>
-                <div id="sign-content" class="content-display"></div>
+                <div id="sign-content-box" class="content-display"></div>
+                <img id="sign-img-display" class="content-img-display hidden">
                 <p style="font-size:0.8rem; color:#666; margin-top:10px;">위 내용에 동의하며 정자로 서명해주세요.</p>
             </div>
 
@@ -244,16 +297,23 @@
                 <div class="cert-content">
                     <strong>제목: <span id="cert-item-title"></span></strong>
                     <br><br>
-                    <div id="cert-content-body" class="content-display" style="border:none; padding:0;"></div>
+                    <div id="cert-content-body" class="content-display" style="border:none; padding:0; background:none;"></div>
+                    <img id="cert-img-display" class="content-img-display hidden" style="margin-bottom:10px;">
                     <br>
                     본인은 <strong><span id="cert-date"></span></strong>에 위 내용을 확인하였으며,
                     이에 동의합니다.
                 </div>
-                <div style="margin-top:30px; text-align: right;">
-                    고객명: <span id="cert-name" style="font-weight:bold;"></span> (인)<br>
-                    <img id="cert-img" class="cert-sign-img" alt="서명">
+                
+                <!-- 하단 서명 및 도장 영역 -->
+                <div class="cert-footer">
+                    <div style="margin-bottom: 5px;">
+                        고객명: <span id="cert-name" style="font-weight:bold; font-size:1.1rem;"></span> (인)
+                    </div>
+                    <div class="sign-area">
+                        <img id="cert-img" class="cert-sign-img" alt="서명">
+                        <div class="stamp">서명<br>완료</div>
+                    </div>
                 </div>
-                <div class="stamp">서명완료</div>
             </div>
 
             <button class="btn-primary" onclick="window.print()">🖨️ 증명서 인쇄/저장</button>
@@ -273,15 +333,16 @@
         
         let isDrawing = false;
         let lastX = 0; let lastY = 0;
+        let uploadedImgData = ""; // 이미지를 Base64로 저장할 변수
 
         // 1. 초기 로딩 및 파라미터 확인
         window.onload = function() {
             const params = new URLSearchParams(window.location.search);
-            // URL 디코딩
             const name = params.get('name');
             const title = params.get('title');
             const date = params.get('date');
             const content = params.get('content');
+            const imgData = params.get('img'); // 이미지 데이터 파라미터
 
             if (name && title) {
                 // 서명 모드
@@ -290,12 +351,25 @@
                 document.getElementById('sign-title').innerText = title;
                 document.getElementById('sign-date').innerText = date || new Date().toISOString().split('T')[0];
                 
-                // 내용 표시 (HTML 태그 허용을 위해 innerHTML 사용)
-                // 보안상 script 태그 제거 등의 소독(Sanitizing)이 필요하지만, 여기서는 데모용으로 단순 처리
+                // 텍스트 내용 표시
                 if(content) {
-                    document.getElementById('sign-content').innerHTML = decodeURIComponent(content);
+                    document.getElementById('sign-content-box').innerText = decodeURIComponent(content);
                 } else {
-                    document.getElementById('sign-content').innerText = "(내용 없음)";
+                    document.getElementById('sign-content-box').innerText = "(내용 없음)";
+                }
+
+                // 이미지 표시
+                if (imgData) {
+                    // + 기호가 공백으로 바뀌는 문제 해결을 위해 다시 replace 할 수도 있음 (브라우저 자동 처리 믿음)
+                    const imgSrc = decodeURIComponent(imgData);
+                    const signImg = document.getElementById('sign-img-display');
+                    signImg.src = imgSrc;
+                    signImg.classList.remove('hidden');
+                    
+                    // 증명서에도 미리 세팅
+                    const certImg = document.getElementById('cert-img-display');
+                    certImg.src = imgSrc;
+                    // 표시는 완료 화면 전환 시 처리
                 }
 
                 setTimeout(resizeCanvas, 50);
@@ -303,14 +377,6 @@
                 // 관리자 모드
                 showScreen('admin');
                 document.getElementById('admin-date').valueAsDate = new Date();
-                
-                // 플레이스홀더 처리
-                const contentBox = document.getElementById('admin-content');
-                contentBox.addEventListener('focus', function() {
-                    if(this.innerText === '텍스트 또는 이미지 삽입') {
-                        this.innerText = '';
-                    }
-                });
             }
         };
 
@@ -319,28 +385,61 @@
             screens[screenName].classList.remove('hidden');
         }
 
-        // --- 관리자 기능 ---
+        // --- 관리자 기능: 파일 처리 ---
+        function handleFileSelect(input) {
+            const file = input.files[0];
+            if (!file) return;
+
+            // 1. 용량 체크 (15KB 제한)
+            const limit = 15 * 1024; // 15KB
+            if (file.size > limit) {
+                alert(`이미지 용량이 너무 큽니다! (${(file.size/1024).toFixed(1)}KB)\n\n서버가 없는 링크 전송 방식이라 15KB 이하의 아주 작은 이미지(로고, 아이콘 등)만 가능합니다.`);
+                input.value = ""; // 초기화
+                uploadedImgData = "";
+                document.getElementById('admin-img-preview').style.display = 'none';
+                document.getElementById('file-msg').style.color = 'red';
+                return;
+            }
+
+            // 2. 파일 읽기 (Base64 변환)
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                uploadedImgData = e.target.result;
+                const preview = document.getElementById('admin-img-preview');
+                preview.src = uploadedImgData;
+                preview.style.display = 'block';
+                document.getElementById('file-msg').style.color = 'green';
+                document.getElementById('file-msg').innerText = "이미지 첨부 완료!";
+            };
+            reader.readAsDataURL(file);
+        }
+
+        // --- 관리자 기능: 링크 생성 ---
         function generateLink() {
             const name = document.getElementById('admin-name').value;
             const title = document.getElementById('admin-title').value;
             const date = document.getElementById('admin-date').value;
-            const content = document.getElementById('admin-content').innerHTML;
+            const content = document.getElementById('admin-content-text').value;
 
             if (!name || !title) {
                 alert("고객명과 제목을 입력해주세요.");
                 return;
             }
 
-            // 내용 인코딩
-            const encodedContent = encodeURIComponent(content);
-
             // 현재 주소 + 파라미터
             const baseUrl = window.location.href.split('?')[0];
-            const fullUrl = `${baseUrl}?name=${encodeURIComponent(name)}&title=${encodeURIComponent(title)}&date=${date}&content=${encodedContent}`;
+            
+            // 파라미터 조립
+            let fullUrl = `${baseUrl}?name=${encodeURIComponent(name)}&title=${encodeURIComponent(title)}&date=${date}&content=${encodeURIComponent(content)}`;
+            
+            // 이미지 데이터가 있으면 추가
+            if (uploadedImgData) {
+                fullUrl += `&img=${encodeURIComponent(uploadedImgData)}`;
+            }
 
-            // URL 길이 체크 (브라우저/서버 제한 고려, 대략 2000~4000자 안전)
+            // URL 길이 체크 (안전 범위 체크)
             if (fullUrl.length > 8000) {
-                alert("내용(이미지)이 너무 많아 링크를 생성할 수 없습니다.\n이미지를 줄이거나 텍스트로 대체해주세요.");
+                alert("생성된 링크가 너무 깁니다. 이미지를 제거하거나 내용을 줄여주세요.");
                 return;
             }
 
@@ -423,17 +522,21 @@
             const name = document.getElementById('sign-name').innerText;
             const title = document.getElementById('sign-title').innerText;
             const date = document.getElementById('sign-date').innerText;
-            const content = document.getElementById('sign-content').innerHTML; // HTML 복사
+            const content = document.getElementById('sign-content-box').innerText;
             const signImgUrl = canvas.toDataURL();
 
+            // 증명서 내용 채우기
             document.getElementById('cert-name').innerText = name;
             document.getElementById('cert-item-title').innerText = title;
             document.getElementById('cert-date').innerText = date;
-            document.getElementById('cert-content-body').innerHTML = content;
+            document.getElementById('cert-content-body').innerText = content;
             document.getElementById('cert-img').src = signImgUrl;
             
-            // 제목을 '확인서' 대신 입력한 제목으로 변경하고 싶다면 아래 주석 해제
-            // document.getElementById('cert-title-text').innerText = title + " 확인서";
+            // 이미지가 있으면 증명서에도 표시
+            const imgDisplay = document.getElementById('sign-img-display');
+            if (!imgDisplay.classList.contains('hidden')) {
+                document.getElementById('cert-img-display').classList.remove('hidden');
+            }
 
             showScreen('cert');
         }
