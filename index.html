@@ -1,13 +1,186 @@
-<!doctype html>
-<html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="/vite.svg" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>my-signature-app</title>
-  </head>
-  <body>
-    <div id="root"></div>
-    <script type="module" src="/src/main.jsx"></script>
-  </body>
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>전자 서명 (Digital Signature)</title>
+    <style>
+        body {
+            font-family: 'Noto Sans KR', sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            background-color: #f0f2f5;
+            margin: 0;
+            overflow: hidden; /* 스크롤 방지 */
+        }
+        h1 {
+            color: #333;
+            margin-bottom: 20px;
+            font-size: 1.5rem;
+        }
+        .canvas-container {
+            position: relative;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            background: white;
+            border-radius: 8px;
+            overflow: hidden;
+            border: 2px solid #ddd;
+        }
+        canvas {
+            display: block;
+            cursor: crosshair;
+            touch-action: none; /* 모바일 터치 스크롤 방지 */
+        }
+        .controls {
+            margin-top: 20px;
+            display: flex;
+            gap: 10px;
+        }
+        button {
+            padding: 10px 20px;
+            font-size: 1rem;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+        .btn-clear {
+            background-color: #ff4b4b;
+            color: white;
+        }
+        .btn-clear:hover {
+            background-color: #d43f3f;
+        }
+        .btn-save {
+            background-color: #4CAF50;
+            color: white;
+        }
+        .btn-save:hover {
+            background-color: #45a049;
+        }
+        .guide {
+            margin-top: 10px;
+            color: #666;
+            font-size: 0.9rem;
+        }
+    </style>
+</head>
+<body>
+
+    <h1>서명을 입력하세요</h1>
+    
+    <div class="canvas-container">
+        <canvas id="signature-pad"></canvas>
+    </div>
+
+    <div class="controls">
+        <button class="btn-clear" id="clear-btn">지우기</button>
+        <button class="btn-save" id="save-btn">저장하기</button>
+    </div>
+    <p class="guide">마우스나 손가락으로 서명해주세요.</p>
+
+    <script>
+        const canvas = document.getElementById('signature-pad');
+        const ctx = canvas.getContext('2d');
+        const clearBtn = document.getElementById('clear-btn');
+        const saveBtn = document.getElementById('save-btn');
+
+        let isDrawing = false;
+        let lastX = 0;
+        let lastY = 0;
+
+        // 캔버스 크기 설정 함수
+        function resizeCanvas() {
+            // 모바일 화면 크기에 맞춰 조절 (여백 고려)
+            const ratio =  Math.max(window.devicePixelRatio || 1, 1);
+            
+            // 화면 너비의 90% 혹은 최대 500px
+            const width = Math.min(window.innerWidth * 0.9, 500); 
+            // 화면 높이의 50% 혹은 최대 300px
+            const height = Math.min(window.innerHeight * 0.5, 300);
+
+            canvas.width = width * ratio;
+            canvas.height = height * ratio;
+            canvas.style.width = width + "px";
+            canvas.style.height = height + "px";
+            
+            ctx.scale(ratio, ratio);
+            
+            // 펜 스타일 설정
+            ctx.strokeStyle = '#000000';
+            ctx.lineJoin = 'round';
+            ctx.lineCap = 'round';
+            ctx.lineWidth = 2;
+        }
+
+        // 초기 실행 및 리사이즈 이벤트
+        window.addEventListener('resize', resizeCanvas);
+        resizeCanvas();
+
+        function startDrawing(e) {
+            isDrawing = true;
+            [lastX, lastY] = getPos(e);
+        }
+
+        function draw(e) {
+            if (!isDrawing) return;
+            e.preventDefault(); // 스크롤 방지
+
+            const [x, y] = getPos(e);
+
+            ctx.beginPath();
+            ctx.moveTo(lastX, lastY);
+            ctx.lineTo(x, y);
+            ctx.stroke();
+
+            [lastX, lastY] = [x, y];
+        }
+
+        function stopDrawing() {
+            isDrawing = false;
+        }
+
+        // 마우스/터치 좌표 계산
+        function getPos(e) {
+            let clientX, clientY;
+            if (e.changedTouches) {
+                clientX = e.changedTouches[0].clientX;
+                clientY = e.changedTouches[0].clientY;
+            } else {
+                clientX = e.clientX;
+                clientY = e.clientY;
+            }
+
+            const rect = canvas.getBoundingClientRect();
+            return [clientX - rect.left, clientY - rect.top];
+        }
+
+        // 이벤트 리스너 등록
+        canvas.addEventListener('mousedown', startDrawing);
+        canvas.addEventListener('mousemove', draw);
+        canvas.addEventListener('mouseup', stopDrawing);
+        canvas.addEventListener('mouseout', stopDrawing);
+
+        canvas.addEventListener('touchstart', startDrawing);
+        canvas.addEventListener('touchmove', draw);
+        canvas.addEventListener('touchend', stopDrawing);
+
+        // 지우기 버튼
+        clearBtn.addEventListener('click', () => {
+            ctx.clearRect(0, 0, canvas.width, canvas.height); // 픽셀 기준 클리어
+            // 캔버스 리셋 시 스케일이 풀릴 수 있으므로 다시 설정하지 않고 clearRect만 사용
+        });
+
+        // 저장 버튼
+        saveBtn.addEventListener('click', () => {
+            const link = document.createElement('a');
+            link.download = 'signature.png';
+            link.href = canvas.toDataURL();
+            link.click();
+        });
+    </script>
+</body>
 </html>
